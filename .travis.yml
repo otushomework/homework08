@@ -9,6 +9,7 @@ install:
   - sudo ./b2
   - sudo ./b2 install
   - ls /usr/local
+  - cd ..
 before_script:
   - ls
   - gcc --version
