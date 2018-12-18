@@ -1,0 +1,22 @@
+language: cpp
+sudo: required
+before_install:
+  - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+  - sudo apt-get update -qq
+install:
+  - sudo apt-get install g++-6 cmake libboost-system-dev libboost-regex-dev libboost-filesystem-dev libboost-program-options-dev -y
+  - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 90
+before_script:
+  - ls
+  - gcc --version
+  - g++ --version
+  - cmake --version
+script:
+  - cmake .
+  - cmake --build .
+  - cmake --build . --target package
+deploy:
+  - provider: script
+    skip_cleanup: true
+    script:
+      - curl -T bayan-0.0.$TRAVIS_BUILD_NUMBER-Linux.deb -ukafeg:$BINTRAY_API_KEY "https://api.bintray.com/content/kafeg/otus/homeworks/$TRAVIS_BUILD_NUMBER/bayan-0.0.$TRAVIS_BUILD_NUMBER-Linux.deb;deb_distribution=trusty;deb_component=main;deb_architecture=amd64;publish=1"
