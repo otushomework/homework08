@@ -1,15 +1,6 @@
 language: cpp
 sudo: required
 dist: xenial
-install:
-  - sudo wget -O boost_1_68_0.tar.gz http://sourceforge.net/projects/boost/files/boost/1.68.0/boost_1_68_0.tar.gz/download
-  - sudo tar xzf boost_1_68_0.tar.gz
-  - cd boost_1_68_0/
-  - sudo ./bootstrap.sh --prefix=/usr/local
-  - sudo ./b2
-  - sudo ./b2 install
-  - ls /usr/local
-  - cd ..
 before_script:
   - ls
   - gcc --version

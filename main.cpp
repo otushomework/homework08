@@ -5,11 +5,11 @@
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/regex.hpp>
 
-#include <boost/uuid/detail/md5.hpp>
+//#include <boost/uuid/detail/md5.hpp>
 #include <boost/uuid/detail/sha1.hpp>
 #include <boost/crc.hpp>
 
-#define MD5 "md5"
+//#define MD5 "md5"
 #define SHA1 "sha1"
 #define CRC32 "crc32"
 
@@ -69,22 +69,22 @@ std::string getHash(char *buffer, const std::string &hashType, const int blockSi
         result.process_bytes(buffer, sizeof(buffer));
         return std::to_string(result.checksum());
     }
-    else if (hashType == MD5)
-    {
-        boost::uuids::detail::md5 md5;
-        md5.process_bytes(buffer, sizeof(buffer));
-        unsigned int hash[4] = {0};
-        md5.get_digest(hash);
+//    else if (hashType == MD5)
+//    {
+//        boost::uuids::detail::md5 md5;
+//        md5.process_bytes(buffer, sizeof(buffer));
+//        unsigned int hash[4] = {0};
+//        md5.get_digest(hash);
 
-        char buf[41] = {0};
-        for (int i = 0; i < 4; i++)
-        {
-            std::sprintf(buf + (i << 3), "%08x", hash[i]);
-        }
+//        char buf[41] = {0};
+//        for (int i = 0; i < 4; i++)
+//        {
+//            std::sprintf(buf + (i << 3), "%08x", hash[i]);
+//        }
 
-        //std::cout << std::string(buf) << std::endl;
-        return std::string(buf);
-    }
+//        //std::cout << std::string(buf) << std::endl;
+//        return std::string(buf);
+//    }
     else if (hashType == SHA1)
     {
         boost::uuids::detail::sha1 sha1;
@@ -117,7 +117,7 @@ int main(int argc, const char *argv[])
             ("minfsize", po::value<int>()->default_value(1), "Minimal file size in bytes")
             ("fmask", po::value<std::string>()->default_value(".*\\.txt"), "File mask for scan")
             ("blocksize", po::value<int>()->default_value(5), "Reading block size, in bytes")
-            ("hashtype", po::value<std::string>()->default_value(CRC32), "Hash algorithm type (md5, sha1 or crc32)");
+            ("hashtype", po::value<std::string>()->default_value(CRC32), "Hash algorithm type (sha1 or crc32)");
 
     po::variables_map vm;
     store(parse_command_line(argc, argv, desc), vm);
@@ -131,7 +131,7 @@ int main(int argc, const char *argv[])
 
     //validate some input params
     if (vm["hashtype"].as<std::string>() != CRC32
-            && vm["hashtype"].as<std::string>() != MD5
+            //&& vm["hashtype"].as<std::string>() != MD5
             && vm["hashtype"].as<std::string>() != SHA1)
     {
         std::cout << "Wrong hash type" << std::endl;
