@@ -5,13 +5,11 @@
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/regex.hpp>
 
-//#include <boost/uuid/detail/md5.hpp>
-#include <boost/uuid/detail/sha1.hpp>
 #include <boost/crc.hpp>
+#include <sodium.h>
 
-//#define MD5 "md5"
-#define SHA1 "sha1"
 #define CRC32 "crc32"
+#define SODIUM "sodium"
 
 namespace po = boost::program_options;
 namespace fs = boost::filesystem;
@@ -56,9 +54,8 @@ void scanDir(const fs::path dirPath, std::list<fs::path> &fileList, const int le
     }
 }
 
-std::string getHash(char *buffer, const std::string &hashType, const int blockSize, const int lastReadBlockSize)
+unsigned char getHash(char *buffer, const std::string &hashType, const int blockSize, const int lastReadBlockSize)
 {
-    //fill readed block
     if (lastReadBlockSize < blockSize)
         for (int i = blockSize - 1; i > blockSize - lastReadBlockSize; --i)
             buffer[i] = 0; //or '0' ?
@@ -67,47 +64,31 @@ std::string getHash(char *buffer, const std::string &hashType, const int blockSi
     {
         boost::crc_32_type result;
         result.process_bytes(buffer, sizeof(buffer));
-        return std::to_string(result.checksum());
+        return result.checksum();
     }
-//    else if (hashType == MD5)
-//    {
-//        boost::uuids::detail::md5 md5;
-//        md5.process_bytes(buffer, sizeof(buffer));
-//        unsigned int hash[4] = {0};
-//        md5.get_digest(hash);
-
-//        char buf[41] = {0};
-//        for (int i = 0; i < 4; i++)
-//        {
-//            std::sprintf(buf + (i << 3), "%08x", hash[i]);
-//        }
-
-//        //std::cout << std::string(buf) << std::endl;
-//        return std::string(buf);
-//    }
-    else if (hashType == SHA1)
+    else if (hashType == SODIUM)
     {
-        boost::uuids::detail::sha1 sha1;
-        sha1.process_bytes(buffer, sizeof(buffer));
-        unsigned hash[5] = {0};
-        sha1.get_digest(hash);
+        //https://libsodium.gitbook.io/doc/hashing/generic_hashing
+        unsigned char hash[crypto_generichash_BYTES];
 
-        char buf[41] = {0};
-        for (int i = 0; i < 5; i++)
-        {
-            std::sprintf(buf + (i << 3), "%08x", hash[i]);
-        }
+        int result = crypto_generichash(hash, sizeof hash,
+                                        reinterpret_cast<unsigned char*>(buffer), sizeof(buffer),
+                                        NULL, 0);
 
-        //std::cout << std::string(buf) << std::endl;
-        return std::string(buf);
+        return reinterpret_cast<unsigned char>(*hash);
     }
 
-    return std::string();
+    return char();
 }
 
 //$ bayan
 int main(int argc, const char *argv[])
 {
+    //https://libsodium.gitbook.io/doc/usage
+    if (sodium_init() == -1) {
+        return 1;
+    }
+
     po::options_description desc{"Options"};
     desc.add_options()
             ("help,h", "This screen")
@@ -117,7 +98,7 @@ int main(int argc, const char *argv[])
             ("minfsize", po::value<int>()->default_value(1), "Minimal file size in bytes")
             ("fmask", po::value<std::string>()->default_value(".*\\.txt"), "File mask for scan")
             ("blocksize", po::value<int>()->default_value(5), "Reading block size, in bytes")
-            ("hashtype", po::value<std::string>()->default_value(CRC32), "Hash algorithm type (sha1 or crc32)");
+            ("hashtype", po::value<std::string>()->default_value(SODIUM), "Hash algorithm type (sodium or crc32)");
 
     po::variables_map vm;
     store(parse_command_line(argc, argv, desc), vm);
@@ -131,8 +112,7 @@ int main(int argc, const char *argv[])
 
     //validate some input params
     if (vm["hashtype"].as<std::string>() != CRC32
-            //&& vm["hashtype"].as<std::string>() != MD5
-            && vm["hashtype"].as<std::string>() != SHA1)
+            && vm["hashtype"].as<std::string>() != SODIUM)
     {
         std::cout << "Wrong hash type" << std::endl;
         std::cout << desc << std::endl;
@@ -166,7 +146,7 @@ int main(int argc, const char *argv[])
 
     for (auto testFile: fullScanFileList)
     {
-        std::vector<std::string> testFileHashes;
+        std::vector<unsigned char> testFileHashes;
         std::ifstream testFileStream(testFile.string(), std::ios::binary);
         char testFileBuffer[vm["blocksize"].as<int>()];
 
@@ -184,7 +164,7 @@ int main(int argc, const char *argv[])
             if (testFile == subTestFile)
                 continue;
 
-            std::vector<std::string> subTestFileHashes;
+            std::vector<unsigned char> subTestFileHashes;
             std::ifstream subTestFileStream(subTestFile.string(), std::ios::binary);
             char subTestFileBuffer[vm["blocksize"].as<int>()];
 
@@ -202,10 +182,7 @@ int main(int argc, const char *argv[])
                 if (subTestFileHashes[subTestFileHashes.size()-1] != testFileHashes[subTestFileHashes.size()-1])
                 {
                     diffFound = true;
-                    //std::cout << "Difference detected " << testFile.string() << " != " << subTestFile.string() << std::endl;
                 }
-
-                //std::cout << subTestFileBuffer << " -> " << subTestFileStream.gcount() << " -> " << result.checksum() << std::endl;
             }
 
             if (!diffFound)

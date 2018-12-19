@@ -2,7 +2,7 @@ language: cpp
 sudo: required
 dist: xenial
 install:
-  - sudo apt-get install libboost-system-dev libboost-regex-dev libboost-filesystem-dev libboost-program-options-dev -y
+  - sudo apt-get install libboost-system-dev libboost-regex-dev libboost-filesystem-dev libboost-program-options-dev libsodium-dev -y
 before_script:
   - ls
   - gcc --version
