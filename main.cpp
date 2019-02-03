@@ -12,6 +12,8 @@
 #define CRC32 "crc32"
 #define SODIUM "sodium"
 
+//#define _DEBUG
+
 namespace po = boost::program_options;
 namespace fs = boost::filesystem;
 
@@ -91,6 +93,7 @@ int main(int argc, const char *argv[])
     }
 
     po::options_description desc{"Options"};
+#ifdef _DEBUG
     desc.add_options()
             ("help,h", "This screen")
             ("scandirs", po::value<std::string>()->default_value("./testdata1,./testdata2"), "Directories for scan")
@@ -100,12 +103,23 @@ int main(int argc, const char *argv[])
             ("fmask", po::value<std::string>()->default_value(".*\\.txt"), "File mask for scan")
             ("blocksize", po::value<int>()->default_value(5), "Reading block size, in bytes")
             ("hashtype", po::value<std::string>()->default_value(SODIUM), "Hash algorithm type (sodium or crc32)");
+#else
+    desc.add_options()
+            ("help,h", "This screen")
+            ("scandirs", po::value<std::string>(), "Directories for scan")
+            ("excldirs", po::value<std::string>(), "Directories for exclude")
+            ("level", po::value<int>()->default_value(1), "Scan level: 1 - with subdirs, 0 - only current")
+            ("minfsize", po::value<int>()->default_value(1), "Minimal file size in bytes")
+            ("fmask", po::value<std::string>()->default_value(".*\\.txt"), "File mask for scan")
+            ("blocksize", po::value<int>()->default_value(5), "Reading block size, in bytes")
+            ("hashtype", po::value<std::string>()->default_value(SODIUM), "Hash algorithm type (sodium or crc32)");
+#endif
 
     po::variables_map vm;
     store(parse_command_line(argc, argv, desc), vm);
     notify(vm);
 
-    if (vm.count("help"))
+    if (vm.count("help") || !vm.count("scandirs"))
     {
         std::cout << desc << std::endl;
         return 0;
@@ -130,17 +144,24 @@ int main(int argc, const char *argv[])
         scanDirs.push_back(fs::canonical(line));
     }
 
-    boost::tokenizer<boost::char_separator<char>> exclDirsTokenizer{vm["excldirs"].as<std::string>(), boost::char_separator<char>{","}};
-    for (auto line: exclDirsTokenizer)
+    if (!vm["excldirs"].empty())
     {
-        trim(line);
-        excludeDirs.push_back(fs::canonical(line));
+        boost::tokenizer<boost::char_separator<char>> exclDirsTokenizer{vm["excldirs"].as<std::string>(), boost::char_separator<char>{","}};
+        for (auto line: exclDirsTokenizer)
+        {
+            trim(line);
+            excludeDirs.push_back(fs::canonical(line));
+        }
     }
 
     std::list<fs::path> fullScanFileList;
     for (auto dir: scanDirs)
     {
-        scanDir(dir, fullScanFileList, vm["level"].as<int>(), excludeDirs, vm["fmask"].as<std::string>(), vm["minfsize"].as<int>());
+        scanDir(dir, fullScanFileList,
+                vm["level"].as<int>(),
+                excludeDirs,
+                vm["fmask"].as<std::string>(),
+                vm["minfsize"].as<int>());
     }
 
     std::vector<fs::path> foundDuplicates;
@@ -170,13 +191,14 @@ int main(int argc, const char *argv[])
             char subTestFileBuffer[vm["blocksize"].as<int>()];
 
             bool diffFound = false;
-            while (subTestFileStream.read(subTestFileBuffer, sizeof(subTestFileBuffer)) || subTestFileStream.gcount())
+            while (subTestFileStream.get(subTestFileBuffer, vm["blocksize"].as<int>()) || subTestFileStream.gcount())
             {
                 subTestFileHashes.push_back(getHash(subTestFileBuffer, vm["hashtype"].as<std::string>(), vm["blocksize"].as<int>(), subTestFileStream.gcount()));
-
+                //std::cout << subTestFileBuffer << std::endl;
                 if (subTestFileHashes.size() > testFileHashes.size())
                 {
-                    testFileStream.read(testFileBuffer, sizeof(testFileBuffer));
+                    testFileStream.get(testFileBuffer, vm["blocksize"].as<int>());
+                    //std::cout << testFileBuffer << std::endl;
                     testFileHashes.push_back(getHash(testFileBuffer, vm["hashtype"].as<std::string>(), vm["blocksize"].as<int>(), testFileStream.gcount()));
                 }
 

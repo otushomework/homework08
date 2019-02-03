@@ -9,6 +9,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/)
 project(bayan VERSION 0.0.$ENV{TRAVIS_BUILD_NUMBER})
 
 #поиск пакетов-зависимостей
+#set(BOOST_ROOT "${VCPKG_ROOT_DIRECTORY}/vcpkg/installed/x64-osx")
 find_package(Boost COMPONENTS system filesystem program_options regex REQUIRED)
 find_package(Sodium REQUIRED)
 
