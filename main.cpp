@@ -169,7 +169,9 @@ int main(int argc, const char *argv[])
     for (auto testFile: fullScanFileList)
     {
         std::vector<unsigned char> testFileHashes;
-        std::ifstream testFileStream(testFile.string(), std::ios::binary);
+        std::ifstream testFileStream;
+        testFileStream.rdbuf()->pubsetbuf(nullptr, 0);
+        testFileStream.open(testFile.string(), std::ios::binary | std::ios::ate);
         char testFileBuffer[vm["blocksize"].as<int>()];
 
         bool foundInDuplicates = (std::find(foundDuplicates.begin(), foundDuplicates.end(), testFile) != foundDuplicates.end());
@@ -187,7 +189,9 @@ int main(int argc, const char *argv[])
                 continue;
 
             std::vector<unsigned char> subTestFileHashes;
-            std::ifstream subTestFileStream(subTestFile.string(), std::ios::binary);
+            std::ifstream subTestFileStream;
+            subTestFileStream.rdbuf()->pubsetbuf(nullptr, 0);
+            subTestFileStream.open(subTestFile.string(), std::ios::binary | std::ios::ate);
             char subTestFileBuffer[vm["blocksize"].as<int>()];
 
             bool diffFound = false;
