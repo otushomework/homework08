@@ -172,6 +172,12 @@ int main(int argc, const char *argv[])
         std::ifstream testFileStream;
         testFileStream.rdbuf()->pubsetbuf(nullptr, 0);
         testFileStream.open(testFile.string(), std::ios::binary | std::ios::ate);
+        testFileStream.seekg(0);
+        if (!testFileStream.is_open())
+        {
+            std::cout << "Error on open file" << testFile << std::endl;
+            return 1;
+        }
         char testFileBuffer[vm["blocksize"].as<int>()];
 
         bool foundInDuplicates = (std::find(foundDuplicates.begin(), foundDuplicates.end(), testFile) != foundDuplicates.end());
@@ -185,6 +191,7 @@ int main(int argc, const char *argv[])
 
         for (auto subTestFile: fullScanFileList)
         {
+            //std::cout << testFile << subTestFile << std::endl;
             if (testFile == subTestFile)
                 continue;
 
@@ -192,32 +199,59 @@ int main(int argc, const char *argv[])
             std::ifstream subTestFileStream;
             subTestFileStream.rdbuf()->pubsetbuf(nullptr, 0);
             subTestFileStream.open(subTestFile.string(), std::ios::binary | std::ios::ate);
+            subTestFileStream.seekg(0);
+            if (!subTestFileStream.is_open())
+            {
+                std::cout << "Error on open sub-file" << subTestFile << std::endl;
+                return 1;
+            }
             char subTestFileBuffer[vm["blocksize"].as<int>()];
 
+            //std::cout << subTestFileStream.gcount() << std::endl;
             bool diffFound = false;
             while (subTestFileStream.get(subTestFileBuffer, vm["blocksize"].as<int>()) || subTestFileStream.gcount())
             {
                 subTestFileHashes.push_back(getHash(subTestFileBuffer, vm["hashtype"].as<std::string>(), vm["blocksize"].as<int>(), subTestFileStream.gcount()));
-                //std::cout << subTestFileBuffer << std::endl;
+                //std::cout << "sub " << subTestFileBuffer << std::endl;
                 if (subTestFileHashes.size() > testFileHashes.size())
                 {
                     testFileStream.get(testFileBuffer, vm["blocksize"].as<int>());
-                    //std::cout << testFileBuffer << std::endl;
                     testFileHashes.push_back(getHash(testFileBuffer, vm["hashtype"].as<std::string>(), vm["blocksize"].as<int>(), testFileStream.gcount()));
+                    //std::cout << "tst " << testFileBuffer << std::endl;
                 }
 
-                if (subTestFileHashes[subTestFileHashes.size()-1] != testFileHashes[subTestFileHashes.size()-1])
+                //if sub-file > main-file or one of hashes not equal
+                if ( ( subTestFileHashes.size() > testFileHashes.size() )
+                        || (subTestFileHashes[subTestFileHashes.size()-1] != testFileHashes[subTestFileHashes.size()-1]) )
+                {
+                    diffFound = true;
+                    break;
+                }
+            }
+
+            //if sub-file < main-file
+            if (subTestFileHashes.size() == testFileHashes.size())
+            {
+                testFileStream.get(testFileBuffer, vm["blocksize"].as<int>());
+                if (testFileStream.gcount() > 0)
                 {
                     diffFound = true;
                 }
             }
 
+            //difference between files not found
             if (!diffFound)
             {
-                std::cout << " - " << subTestFile.string() << std::endl;
+                std::cout << " + " << subTestFile.string() << std::endl;
                 foundDuplicates.push_back(subTestFile);
             }
+            else
+            {
+                std::cout << " - " << subTestFile.string() << std::endl;
+            }
         }
+
+        //std::cout << "testFileHashes.size " << testFileHashes.size() << std::endl;
     }
 
     return 0;
