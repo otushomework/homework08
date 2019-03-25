@@ -134,6 +134,9 @@ int main(int argc, const char *argv[])
         return 1;
     }
 
+    //int blockSize = vm["blocksize"].as<int>();
+    //std::cout << "BlockSize " << vm["blocksize"].as<int>() << std::endl;
+
     std::list<fs::path> scanDirs;
     std::list<fs::path> excludeDirs;
 
@@ -178,7 +181,8 @@ int main(int argc, const char *argv[])
             std::cout << "Error on open file" << testFile << std::endl;
             return 1;
         }
-        char testFileBuffer[vm["blocksize"].as<int>()];
+        char *testFileBuffer = new char[vm["blocksize"].as<int>() + 1];
+        testFileBuffer[vm["blocksize"].as<int>()] = '\0'; //for debug
 
         bool foundInDuplicates = (std::find(foundDuplicates.begin(), foundDuplicates.end(), testFile) != foundDuplicates.end());
         if (foundInDuplicates)
@@ -205,17 +209,18 @@ int main(int argc, const char *argv[])
                 std::cout << "Error on open sub-file" << subTestFile << std::endl;
                 return 1;
             }
-            char subTestFileBuffer[vm["blocksize"].as<int>()];
+            char *subTestFileBuffer = new char[vm["blocksize"].as<int>() + 1];
+            subTestFileBuffer[vm["blocksize"].as<int>()] = '\0'; //for debug
 
             //std::cout << subTestFileStream.gcount() << std::endl;
             bool diffFound = false;
-            while (subTestFileStream.get(subTestFileBuffer, vm["blocksize"].as<int>()) || subTestFileStream.gcount())
+            while (subTestFileStream.read(subTestFileBuffer, vm["blocksize"].as<int>()) || subTestFileStream.gcount())
             {
                 subTestFileHashes.push_back(getHash(subTestFileBuffer, vm["hashtype"].as<std::string>(), vm["blocksize"].as<int>(), subTestFileStream.gcount()));
                 //std::cout << "sub " << subTestFileBuffer << std::endl;
                 if (subTestFileHashes.size() > testFileHashes.size())
                 {
-                    testFileStream.get(testFileBuffer, vm["blocksize"].as<int>());
+                    testFileStream.read(testFileBuffer, vm["blocksize"].as<int>());
                     testFileHashes.push_back(getHash(testFileBuffer, vm["hashtype"].as<std::string>(), vm["blocksize"].as<int>(), testFileStream.gcount()));
                     //std::cout << "tst " << testFileBuffer << std::endl;
                 }
@@ -228,6 +233,8 @@ int main(int argc, const char *argv[])
                     break;
                 }
             }
+
+            delete[] subTestFileBuffer;
 
             //if sub-file < main-file
             if (subTestFileHashes.size() == testFileHashes.size())
@@ -250,6 +257,8 @@ int main(int argc, const char *argv[])
                 std::cout << " - " << subTestFile.string() << std::endl;
             }
         }
+
+        delete[] testFileBuffer;
 
         //std::cout << "testFileHashes.size " << testFileHashes.size() << std::endl;
     }
